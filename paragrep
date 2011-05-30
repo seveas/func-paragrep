@@ -1,0 +1,94 @@
+#!/usr/bin/python
+
+help = """%prog [opts] host_spec regex file_spec
+
+This tool lets you grep logs in parallel on multiple machines via func.
+host_spec accepts anything func understands, file_spec is a list of files or
+file globs. Globs will be expanded on the remote end.
+
+paragrep supports many options grep supports and some options of its own.
+"""
+# (c) 2011 Dennis Kaarsemaker <dennis@kaarsemaker.net>
+# License: GPL 3+
+
+FUNC_MAPFILE = '/var/lib/func/map'
+
+import func.overlord.client as fc
+import optparse
+import os
+import sys
+
+opts = {}
+def set_opt(option, opt_str, value, parser):
+    opts[opt_str] = 'None'
+def set_optv(option, opt_str, value, parser):
+    opts[opt_str] = value
+p = optparse.OptionParser(usage=help, add_help_option=False)
+p.add_option("--help", action="help", help="show this help message and exit")
+p.add_option('-A', action='callback', dest='opts', callback=set_optv, type=int,
+             help='print NUM lines of trailing context')
+p.add_option('-B', action='callback', dest='opts', callback=set_optv, type=int,
+             help='print NUM lines of leading context')
+p.add_option('-C', action='callback', dest='opts', callback=set_optv, type=int,
+             help='print NUM lines of output context')
+p.add_option('-F', action='callback', dest='opts', callback=set_optv,
+             help='pattern is a set of newline-separated fixed strings')
+p.add_option('-E', action='callback', dest='opts', callback=set_opt,
+             help='pattern is an extended regular expression')
+p.add_option('-H', action='callback', dest='opts', callback=set_opt,
+             help='print the filename for each match')
+p.add_option('-L', action='callback', dest='opts', callback=set_opt,
+             help='print only names of FILEs containing no match')
+p.add_option('-P', action='callback', dest='opts', callback=set_opt,
+             help='pattern is a perl regular expression')
+p.add_option('-c', action='callback', dest='opts', callback=set_opt,
+             help='print only a count of matching lines per FILE')
+p.add_option('-h', action='callback', dest='opts', callback=set_opt,
+             help='suppress the prefixing filename on output')
+p.add_option('-i', action='callback', dest='opts', callback=set_opt,
+             help='ignore case distinctions')
+p.add_option('-j', action='callback', dest='opts', callback=set_opt,
+             help='search bzip2-compressesd logfiles with bzgrep')
+p.add_option('-l', action='callback', dest='opts', callback=set_opt,
+             help='print only names of files containing matches')
+p.add_option('-n', action='callback', dest='opts', callback=set_opt,
+             help='print line number with output lines')
+p.add_option('-o', action='callback', dest='opts', callback=set_opt,
+             help='show only the part of a line matching PATTERN')
+p.add_option('-q', action='callback', dest='opts', callback=set_opt,
+             help='suppress all normal output')
+p.add_option('-r', action='callback', dest='opts', callback=set_opt,
+             help='recursively search in directories')
+p.add_option('-s', action='callback', dest='opts', callback=set_opt,
+             help='suppress error messages')
+p.add_option('-v', action='callback', dest='opts', callback=set_opt,
+             help='select non-matching lines')
+p.add_option('-w', action='callback', dest='opts', callback=set_opt,
+             help='force pattern to match only whole words')
+p.add_option('-x', action='callback', dest='opts', callback=set_opt,
+             help='force pattern to match only whole lines')
+p.add_option('-z', action='callback', dest='opts', callback=set_opt,
+             help='search gzip-compressesd logfiles with zgrep')
+
+_, args = p.parse_args()
+if len(args) < 3:
+    p.print_help()
+    sys.exit(1)
+
+client = fc.Client(args[0], timeout=300, dtimeout=300, delegate=os.path.exists(FUNC_MAPFILE))
+client.nforks = len(client.minions)
+result = client.grep.grep(opts, args[1], args[2:])
+hosts = result.keys()
+hosts.sort()
+for h in hosts:
+    if result[h][0] == 'REMOTE_ERROR':
+        lines = result[h]
+        h = h[:h.find('.')] + ':'
+        for l in lines:
+            print h + l.replace('\n', '\n' + h)
+        continue
+    ret, out, err = result[h]
+    h = h[:h.find('.')] + ':'
+    print h + out.strip().replace('\n', '\n' + h)
+    if err:
+        print h + err.strip().replace('\n', '\n' + h)

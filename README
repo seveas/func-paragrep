@@ -1,0 +1,42 @@
+Paragrep -- parallel log grepper using func
+===========================================
+
+FUNC (https://fedorahosted.org/func/) is a modular remote execution daemon.
+Paragrep uses func for parallel log searching. It consists of two parts: the
+func module you need to deploy to all your servers and a frontend application
+that queries this module. You use the frontend on your func master.
+
+paragrep supports func delegation and will automatically parallelize 100% to
+get results as quick as possible.
+
+Usage:
+
+paragrep --help
+paragrep [opts] [host_spec] [regexp] [file_spec]
+
+Paragrep accept many of grep's options and adds two of its own: -z and -j zo
+use zgrep resp. bzgrep instead of grep. --help lists all supported options.
+
+host_spec accepts anything func understands, that is semicolon-separated globs
+that match server names. Don't forget to quote them in the shell.
+
+file_spec is a list of files or file globs. Globs will be expanded on the
+remote end if you quote them properly.
+
+Example invocations:
+
+paragrep 'webserver-*.example.com;ntp-server-*.example.com' root /var/log/secure*
+paragrep -z 'webserver-*' login.py /var/log/httpd/access_log*gz
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
